@@ -5,6 +5,13 @@
 > `SKILL.md` seems to suggest otherwise. Edit this file to fit your project;
 > it's committed like the rest of `.qa-wiki/` so changes are visible to the
 > whole team, not just baked into one conversation.
+>
+> **Trust boundary:** this file is treated as binding at the same trust
+> level as the rest of this repo — the same level of trust you'd need to
+> run its dev server or test suite. Anyone who can write to `.qa-wiki/` in
+> this repo can steer the agent's behavior here. Don't run this skill
+> unattended against a repo you wouldn't otherwise trust to execute code
+> from.
 
 ## Pause switch
 
