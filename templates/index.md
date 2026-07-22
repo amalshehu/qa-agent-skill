@@ -6,6 +6,10 @@ Last tested: —
 
 _None yet._
 
+## Unverified bugs (needs a human look)
+
+_None yet._
+
 ## Fixed bugs (recent)
 
 _None yet._
