@@ -16,14 +16,14 @@ If bugs should file to GitHub, ensure the repo has issues enabled:
 gh repo edit <owner>/<repo> --enable-issues
 ```
 
-Example (already done for `rubix_publisher_app`):
+Example:
 ```bash
-gh repo edit amalshehu/rubix_publisher_app --enable-issues
+gh repo edit your-org/your-repo --enable-issues
 ```
 
 Verify:
 ```bash
-gh repo view amalshehu/rubix_publisher_app --json hasIssuesEnabled
+gh repo view your-org/your-repo --json hasIssuesEnabled
 ```
 
 ## 2. Connect Jira MCP (Required)
