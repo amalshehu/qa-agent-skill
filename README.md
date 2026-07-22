@@ -63,12 +63,20 @@ Before exploring anything, the skill reads `index.md` and the tail of `log.md` â
 
 ## Installation
 
+**Option A: [skills.sh](https://www.skills.sh)** â€” installs into Claude Code (plus Codex, Cursor, Antigravity, Gemini CLI, and other supported agents) in one command:
+
+```bash
+npx skills add amalshehu/qa-agent-skill
+```
+
+**Option B: manual clone + symlink**
+
 ```bash
 git clone https://github.com/amalshehu/qa-agent-skill.git ~/Code/qa-agent-skill
 ln -s ~/Code/qa-agent-skill ~/.claude/skills/qa-agent-skill
 ```
 
-Restart Claude Code (or start a new session) so it picks up the skill. Then just say:
+Either way, restart Claude Code (or start a new session) so it picks up the skill. Then just say:
 
 ```
 test my app at https://staging.example.com
