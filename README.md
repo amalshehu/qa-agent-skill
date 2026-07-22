@@ -63,13 +63,15 @@ Before exploring anything, the skill reads `index.md` and the tail of `log.md` �
 
 ## Installation
 
-**Option A: [skills.sh](https://www.skills.sh)** — installs into Claude Code (plus Codex, Cursor, Antigravity, Gemini CLI, and other supported agents) in one command:
+**Option A: [skills.sh](https://www.skills.sh)** — installs into Claude Code (plus Codex, Cursor, Antigravity, Gemini CLI, and other supported agents) in one command. Requires Node.js/npm and `git` on your machine, plus internet access to npm and GitHub.
 
 ```bash
-npx skills add amalshehu/qa-agent-skill
+npx skills add amalshehu/qa-agent-skill -g
 ```
 
-**Option B: manual clone + symlink**
+The `-g`/`--global` flag matters — without it, `skills add` installs per-project (only visible in whatever directory you ran it from) rather than available everywhere, unlike Option B below.
+
+**Option B: manual clone + symlink** — only needs `git`.
 
 ```bash
 git clone https://github.com/amalshehu/qa-agent-skill.git ~/Code/qa-agent-skill
