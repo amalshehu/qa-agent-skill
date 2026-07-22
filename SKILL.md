@@ -18,17 +18,25 @@ Treat each test run as **compounding, not disposable**. A one-off bug report tha
 
 ## The QA wiki
 
-Every target gets a small persistent knowledge base at `.qa-wiki/<target-slug>/` (slug = the hostname, e.g. `staging-app-rubix-world`). Put it in the local checkout of the target's repo if one exists; otherwise under the skill's own workspace. Layout:
+The wiki is a **shared, committed knowledge base** — it lives in `.qa-wiki/` at the root of the target project's own git repo (not in this skill's workspace), so it's version-controlled, reviewable in normal PRs, browsable directly in Obsidian by any developer, and read by this skill on every future run. It is a compounding artifact, not a scratch log: raw exploration during a run is ephemeral, the wiki is what persists.
+
+If the target has no local git checkout (e.g. you're only hitting a deployed URL with no repo on disk), fall back to the skill's own workspace and tell the user the wiki won't be shared with the team until it's moved into the project repo.
+
+Layout, one wiki per repo (not per target-slug — a single project may have multiple environments, but one shared brain):
 
 ```
-.qa-wiki/<target-slug>/
-  index.md              # catalog: open bugs, fixed bugs, flows tested, last-tested date
-  log.md                # append-only, one line per run: "## [YYYY-MM-DD] run | tracker=<x> | N found (M new, K regressions)"
+.qa-wiki/
+  CLAUDE.md              # the schema: conventions, page formats, workflow rules — copy from templates/CLAUDE.md on first run, never overwrite after
+  index.md               # catalog: open bugs, fixed bugs, flows tested, last-tested date
+  log.md                 # append-only, one line per run: "## [YYYY-MM-DD] run | tracker=<x> | N found (M new, K regressions)"
   bugs/<bug-slug>.md     # one page per distinct bug: status, first-found/last-seen dates, repro, evidence paths, ticket/issue link
+  flows/<flow-slug>.md   # one page per distinct user flow exercised, linking to the bugs found in it
   screenshots/<bug-slug>/NN-step.png   # the actual persisted evidence files
 ```
 
-This mirrors a simple wiki pattern: raw exploration is ephemeral, the wiki is the compounding artifact. `index.md` is what you read before a run (what's already known); `log.md` is the timeline; `bugs/*.md` are the living pages that get updated in place rather than re-created.
+**First run in a repo**: if `.qa-wiki/` doesn't exist yet, initialize it by copying `templates/CLAUDE.md`, `templates/index.md`, and `templates/log.md` from this skill into the target repo's `.qa-wiki/`, then commit them (`qa-wiki: initialize shared QA knowledge base`) after confirming with the user — this is the first shared artifact other developers will see. `.qa-wiki/CLAUDE.md` is the schema contract for the directory; read it at the start of every run (it may have been hand-edited by the team since last time) and follow it exactly rather than the summary below.
+
+`index.md` is what you read before a run (what's already known); `log.md` is the timeline; `bugs/*.md` and `flows/*.md` are living pages updated in place rather than re-created. At the end of a run, `git add .qa-wiki && git commit` the changes (small, clear message) so the update lands in the team's normal git history, not just on local disk — confirm with the user first, the same as any other commit.
 
 ## Workflow
 
@@ -42,7 +50,7 @@ Before opening the browser, ask the user — in one question round where possibl
 
 ### 1. Consult the wiki, then Jira
 
-Check `.qa-wiki/<target-slug>/index.md` and the tail of `log.md` first. If they exist, tell the user what's already known — open bugs, when it was last tested — before doing anything else. This shapes the run: known-open bugs get re-verified (still broken? now fixed?) rather than re-discovered from scratch and re-filed as duplicates.
+Check `.qa-wiki/CLAUDE.md` (schema, may have been edited by the team since last run), `.qa-wiki/index.md`, and the tail of `log.md` first. If they exist, tell the user what's already known — open bugs, flows tested, when it was last tested — before doing anything else. This shapes the run: known-open bugs get re-verified (still broken? now fixed?) rather than re-discovered from scratch and re-filed as duplicates. If `.qa-wiki/` doesn't exist yet, initialize it per the "First run in a repo" step above before continuing.
 
 Then, if a Jira MCP is connected, query it for open QA-related work (assigned-to-QA, labeled "QA"/"testing", or in a "Ready for QA"-style status — follow whatever convention the project actually uses) and list what you find: ticket key, title, enough context to tell them apart. Ask which one to start with; the chosen ticket defines what flow to verify. If it doesn't name a URL or flow, ask.
 
@@ -79,7 +87,7 @@ Tone: the way a good teammate flags a problem — professional, direct, human. N
 
 For each confirmed bug, re-run its **minimal** repro from a fresh page load, and this time capture it for real:
 
-1. At each step, call Playwright's `browser_take_screenshot` with an explicit `filename` pointing into `.qa-wiki/<target-slug>/screenshots/<bug-slug>/` — e.g. `01-initial.png`, `02-typed-input.png`, `03-after-submit.png`. This is what actually persists a file; nothing else in this toolset does.
+1. At each step, call Playwright's `browser_take_screenshot` with an explicit `filename` pointing into `.qa-wiki/screenshots/<bug-slug>/` — e.g. `01-initial.png`, `02-typed-input.png`, `03-after-submit.png`. This is what actually persists a file; nothing else in this toolset does.
 2. If `ffmpeg` is available (`which ffmpeg`), assemble the numbered PNGs into a GIF: `ffmpeg -framerate 1 -pattern_type glob -i '*.png' repro.gif` — one frame per second reads like a slow screen recording. No ffmpeg → attach the numbered screenshots instead.
 3. GitHub: `gh issue create` can't upload images into the body, so host the artifacts first — a dedicated `qa-artifacts` branch or a gist, pushed via `gh` — and embed the raw URLs as `![repro](…)` markdown. Ask the user which hosting they prefer the first time, then reuse that choice.
 4. Jira: use the Jira MCP's attachment capability if it has one; otherwise embed the same hosted URLs in the ticket/comment body.
@@ -96,8 +104,10 @@ Filing a ticket or posting a comment is visible to the whole team. Show the user
 Regardless of whether filing happened yet, record the run:
 
 - For each bug: create or update its `bugs/<bug-slug>.md` page (status, first-found/last-seen dates, repro, evidence paths, ticket/issue link once filed). A previously-open bug that's now fixed gets marked fixed with the date; a previously-fixed one that reappeared gets marked regressed.
+- For each flow exercised: create or update its `flows/<flow-slug>.md` page (last-tested date, coverage, links to bugs found there).
 - Update `index.md`'s catalog and last-tested date.
 - Append one line to `log.md`: `## [YYYY-MM-DD] run | tracker=<x> | N found (M new, K regressions)`.
+- Confirm with the user, then `git add .qa-wiki && git commit -m "qa-wiki: <short summary of this run>"` so the update lands in the repo's normal history — this is a shared brain other developers and future runs read from, not local scratch state.
 
 This is what makes the next run start smarter instead of from scratch.
 
