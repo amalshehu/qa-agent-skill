@@ -1,0 +1,13 @@
+{
+  "name": "qa-agent-skill",
+  "description": "Turns Claude into an autonomous QA tester for a running web app: explores like a confused/adversarial user, verifies findings independently, and files bugs with repro evidence.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Amal Shehu"
+  },
+  "homepage": "https://github.com/amalshehu/qa-agent-skill",
+  "repository": "https://github.com/amalshehu/qa-agent-skill",
+  "license": "MIT",
+  "keywords": ["qa", "testing", "browser-automation", "bug-reporting"],
+  "skills": ["./"]
+}

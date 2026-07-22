@@ -63,15 +63,24 @@ Before exploring anything, the skill reads `index.md` and the tail of `log.md` �
 
 ## Installation
 
-**Option A: [skills.sh](https://www.skills.sh)** — installs into Claude Code (plus Codex, Cursor, Antigravity, Gemini CLI, and other supported agents) in one command. Requires Node.js/npm and `git` on your machine, plus internet access to npm and GitHub.
+**Option A: Claude Code's plugin marketplace** — this repo is a self-hosted marketplace, no separate registry needed:
+
+```bash
+claude plugin marketplace add amalshehu/qa-agent-skill
+claude plugin install qa-agent-skill@qa-agent-skill
+```
+
+(or the `/plugin marketplace add amalshehu/qa-agent-skill` + `/plugin install qa-agent-skill@qa-agent-skill` slash commands from inside a Claude Code session).
+
+**Option B: [skills.sh](https://www.skills.sh)** — installs into Claude Code (plus Codex, Cursor, Antigravity, Gemini CLI, and other supported agents) in one command. Requires Node.js/npm and `git` on your machine, plus internet access to npm and GitHub.
 
 ```bash
 npx skills add amalshehu/qa-agent-skill -g
 ```
 
-The `-g`/`--global` flag matters — without it, `skills add` installs per-project (only visible in whatever directory you ran it from) rather than available everywhere, unlike Option B below.
+The `-g`/`--global` flag matters — without it, `skills add` installs per-project (only visible in whatever directory you ran it from) rather than available everywhere, unlike Option C below.
 
-**Option B: manual clone + symlink** — only needs `git`.
+**Option C: manual clone + symlink** — only needs `git`.
 
 ```bash
 git clone https://github.com/amalshehu/qa-agent-skill.git ~/Code/qa-agent-skill

@@ -1,0 +1,14 @@
+{
+  "name": "qa-agent-skill",
+  "owner": {
+    "name": "Amal Shehu"
+  },
+  "description": "Autonomous QA testing skill for Claude Code",
+  "plugins": [
+    {
+      "name": "qa-agent-skill",
+      "source": "./",
+      "description": "Turns Claude into an autonomous QA tester for a running web app"
+    }
+  ]
+}
