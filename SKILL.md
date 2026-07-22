@@ -1,50 +1,75 @@
 ---
 name: qa-agent-skill
-description: Turns Claude into an autonomous QA tester for a running web app. Use whenever the user says "test my app", "find bugs", "QA this", "break this app", "click around and see what breaks", or asks Claude to stress-test or bug-hunt a live URL or dev server — even if they just say "test it" or "does this work" without naming GitHub or Jira. Claude drives the app in a real browser via Playwright MCP, acts like a confused/adversarial user (clicks everything, submits garbage into forms, resizes the viewport, mashes back/forward), and for every genuine bug found writes a professional, human-sounding repro with a screenshot or recording attached, then files it as a GitHub issue (gh CLI) or a comment on the matching Jira ticket (Jira MCP) — whichever the project actually uses.
+description: Turns Claude into an autonomous QA tester for a running web app. Use whenever the user says "test my app", "find bugs", "QA this", "break this app", "click around and see what breaks", or asks Claude to stress-test or bug-hunt a live URL or dev server — even if they just say "test it" or "does this work" without naming a tracker. Starts with a short setup interview (target URL — localhost or deployed, environment type, and which tracker to use), fetches open QA tickets from Jira when a Jira MCP is connected and asks which to start with, then drives the app with Claude's browser tools like a confused/adversarial user (clicks everything, submits garbage into forms, resizes the viewport, mashes back/forward). Every genuine bug gets a high-quality repro report with numbered screenshots and an assembled GIF, filed as a Jira ticket/comment or a GitHub issue (gh CLI) — always with user confirmation before anything is filed.
 ---
 
 # QA Agent
 
+Act as a careful QA engineer: skeptical, thorough, and precise. Never guess when you can ask — a wrong assumption here wastes an entire exploration run or, worse, files noise into a team's tracker.
+
 ## What you need
 
-- A running app to point the browser at (a URL, or a local dev server — start it first if it isn't running).
-- Playwright MCP browser tools (or whatever browser automation MCP is connected) to drive the app.
-- Either `gh` CLI authenticated to the target repo, or a Jira/Atlassian MCP connected. Check which is actually available (`gh repo view`, and search for a Jira MCP via ToolSearch) — don't assume one over the other.
+- Claude's browser tools (`navigate`, `read_page`, `computer`, `resize_window`, `read_console_messages`, `read_network_requests`) to drive the app.
+- A tracker for the bugs: a connected Jira MCP, or `gh` CLI authenticated with issues enabled on the target repo.
 
 ## Workflow
 
-### 1. Confirm target and tracker
+### 0. Setup interview
 
-Check whether a Jira MCP is connected before asking the user anything. If it is, query it for open QA-related work (tickets assigned to QA, labeled "QA"/"testing", or in a "Ready for QA"/"Needs testing" status — whatever the project's convention turns out to be) and show the user the list: ticket key, title, and enough context to tell them apart. Ask which one to start with rather than picking for them. The chosen ticket should tell you what app/URL/flow to point the browser at — if it doesn't say, ask.
+Before opening the browser, ask the user — in one question round where possible, never inferred from repo context:
 
-If no Jira MCP is connected, or the user has no open QA tickets, fall back to asking directly which app/URL to test.
+1. **Target URL** — a deployed URL, or localhost? If localhost, which port, and does the dev server need starting first (start it if so)?
+2. **Environment** — staging/test or production? Production means read-only exploration only: no form submissions that persist data, no destructive controls.
+3. **Tracker** — first detect what's actually available: search for a connected Jira MCP via ToolSearch, and check `gh auth status` plus whether the repo has issues enabled (`gh repo view --json hasIssuesEnabled`). Present what you found and confirm the destination. If neither tracker works, stop and tell the user — finding bugs with nowhere to report them wastes the run.
 
-Either way, also figure out where bugs should go: check whether the current repo has GitHub issues enabled, and check whether a Jira MCP is connected. If both are available, ask the user which one to use rather than guessing. If neither is available, say so before doing any exploration — there's no point finding bugs with nowhere to report them.
+### 1. Jira tickets: fetch or create
 
-### 2. Explore via a subagent
+If a Jira MCP is connected, query it for open QA-related work (assigned-to-QA, labeled "QA"/"testing", or in a "Ready for QA"-style status — follow whatever convention the project actually uses) and list what you find: ticket key, title, enough context to tell them apart. Ask which one to start with; the chosen ticket defines what flow to verify. If it doesn't name a URL or flow, ask.
 
-Delegate the actual click-everything exploration to a subagent so hundreds of clicks and screenshots don't bloat the main conversation. Give it the URL, the viewport breakpoints to try (mobile/tablet/desktop), and the mandate:
+If there's no Jira, or no relevant open ticket, run free exploration instead — and for each confirmed bug, offer to **create** a new ticket or GitHub issue rather than assuming one exists to comment on.
 
-- Click every interactive element, follow every link, open every menu/modal.
+### 2. Explore with the browser
+
+Delegate the click-everything exploration to a subagent so hundreds of interactions and screenshots don't bloat the main conversation. Give it the URL, the environment constraints from step 0, and this mandate:
+
+- Open the target with `navigate` (or `preview_start` for a local dev server).
+- Use `read_page`/`find` to enumerate interactive elements, and `computer` to click every one, follow every link, open every menu and modal.
 - Submit forms with edge-case input: empty, way-too-long, wrong type, special characters, unicode, whitespace-only.
-- Mash back/forward through browser history, refresh mid-action, try double-submitting a form, hit a nonsense route/URL.
-- For anything that looks broken, record: exact repro steps, what was observed (console error, failed network request, visual break, crash, stuck loading state, silent data loss, validation bypass), and a screenshot at the point of failure. If a GIF-capable browser tool is connected, use it to record the repro sequence; otherwise a short set of before/during/after screenshots is the fallback artifact.
+- `resize_window` through the mobile/tablet/desktop presets and re-check key screens at each.
+- Mash back/forward through history, refresh mid-action, double-submit a form, hit a nonsense route.
+- Watch `read_console_messages` (errors) and `read_network_requests` (failed requests) after each significant action — these catch bugs the UI hides.
+- Screenshot anything that looks broken at the moment of failure.
 
 A form correctly rejecting bad input with a clear error is the app working, not a bug — only flag things that break when they shouldn't.
 
-### 3. Filter and dedupe
+### 3. Evidence: screenshots and repro GIF
 
-Before filing anything, check whether an existing issue or ticket already covers it (`gh issue list --search`, or search the Jira project). If one exists, comment on it instead of opening a duplicate.
+There is no built-in screen recorder, so build the recording from stills:
 
-### 4. Write it up like a person, not a bot
+1. Re-run each confirmed bug's **minimal** repro from a fresh page load, capturing a numbered screenshot at every step into `.qa-artifacts/<bug-slug>/` (`01-initial.png`, `02-typed-input.png`, `03-after-submit.png`, …).
+2. If ffmpeg is available (`which ffmpeg`), assemble the steps into a GIF: `ffmpeg -framerate 1 -pattern_type glob -i '*.png' repro.gif` — one frame per second reads like a slow screen recording. No ffmpeg → attach the numbered screenshots instead.
+3. GitHub: `gh issue create` can't upload images into the body, so host artifacts first — a dedicated `qa-artifacts` branch or a gist, pushed via `gh` — and embed the raw URLs as `![repro](…)` markdown. Ask the user which hosting they prefer the first time.
+4. Jira: use the Jira MCP's attachment capability if it has one; otherwise embed the same hosted URLs in the ticket/comment body.
+5. Minimum bar: every filed report carries the failure-point screenshot; include the GIF whenever the repro is a sequence of interactions.
 
-- Title: short and specific, e.g. "Back button after failed checkout re-submits the order."
-- Body: numbered repro steps, expected vs. actual, environment (URL, viewport, browser), severity, screenshot/recording attached.
-- Write it the way a teammate would flag it, not "I have identified the following issue."
+### 4. Bug report standard
+
+Every report — ticket, issue, or comment — contains:
+
+- **Title**: the specific broken behavior, e.g. "Back button after failed checkout re-submits the order" — not "Bug in checkout".
+- **Repro steps**: numbered, minimal, starting from a fresh page load.
+- **Expected vs. actual**: one line each.
+- **Environment**: URL, viewport size, browser, timestamp.
+- **Severity**: with a one-line justification tied to user impact.
+- **Evidence**: screenshot/GIF attached; console errors or failed request details quoted when they're part of the story.
+
+Tone: the way a good teammate flags a problem — professional, direct, human. No filler ("I have identified the following issue…"), no speculation about root cause unless the evidence actually supports it.
+
+Before filing anything, dedupe: search existing issues/tickets (`gh issue list --search`, or the Jira project) and comment on a match instead of opening a duplicate.
 
 ### 5. Confirm before filing
 
-Filing an issue or posting a comment is visible to the whole team — tell the user what you're about to file or comment (title + destination) and wait for a yes before running `gh issue create` or posting to Jira, unless they already said to file whatever you find.
+Filing a ticket or posting a comment is visible to the whole team. Show the user each draft — destination, title, body — and wait for a yes before running `gh issue create` or any Jira write, unless they already said to file whatever you find.
 
 ## Safety
 
