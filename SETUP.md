@@ -43,17 +43,6 @@ This will:
 2. Grant Claude access to your Jira Cloud instance
 3. Store the connection in your Claude config
 
-### For Jira Server / Data Center (self-hosted):
-
-Use the community `sooperset/mcp-atlassian` instead:
-
-```bash
-git clone https://github.com/sooperset/mcp-atlassian.git /path/to/mcp-atlassian
-cd /path/to/mcp-atlassian
-npm install
-# Then configure in your Claude settings pointing to the local server
-```
-
 ### Verify Jira is Connected:
 
 After connecting, start a new Claude session and run:
@@ -79,7 +68,7 @@ git commit -m "Add .qa-artifacts directory for QA evidence"
 Once Jira is connected, the skill is ready. Trigger it with:
 
 ```
-test my app at https://staging.app.rubix.world
+test my app at https://google.com
 ```
 
 The skill will:
