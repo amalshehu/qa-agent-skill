@@ -15,7 +15,11 @@ description: Turns Claude into an autonomous QA tester for a running web app. Us
 
 ### 1. Confirm target and tracker
 
-Ask which app/URL to test if it isn't obvious from context. Then figure out where bugs should go: check whether the current repo has GitHub issues enabled, and check whether a Jira MCP is connected. If both are available, ask the user which one to use rather than guessing. If neither is available, say so before doing any exploration — there's no point finding bugs with nowhere to report them.
+Check whether a Jira MCP is connected before asking the user anything. If it is, query it for open QA-related work (tickets assigned to QA, labeled "QA"/"testing", or in a "Ready for QA"/"Needs testing" status — whatever the project's convention turns out to be) and show the user the list: ticket key, title, and enough context to tell them apart. Ask which one to start with rather than picking for them. The chosen ticket should tell you what app/URL/flow to point the browser at — if it doesn't say, ask.
+
+If no Jira MCP is connected, or the user has no open QA tickets, fall back to asking directly which app/URL to test.
+
+Either way, also figure out where bugs should go: check whether the current repo has GitHub issues enabled, and check whether a Jira MCP is connected. If both are available, ask the user which one to use rather than guessing. If neither is available, say so before doing any exploration — there's no point finding bugs with nowhere to report them.
 
 ### 2. Explore via a subagent
 
