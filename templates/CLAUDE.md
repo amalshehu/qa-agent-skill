@@ -161,3 +161,19 @@ Append-only, chronological, one line per run, consistent prefix so it stays
 6. **Escalate instead of looping.** `CONSTRAINTS.md` sets hard limits (failed
    repro attempts, bugs-per-run) — hitting one means stop and tell the user,
    not push through.
+
+## Performance and root-cause evidence
+
+For tickets involving slowness, timeouts, excessive requests, or a performance
+fix, include an explicit target/budget and a measured request inventory. Record
+each critical-path API's method, URL, purpose, start/end time, duration, status,
+payload size when available, cache state, and whether it ran in parallel or
+sequentially. Include server-side SSR/RSC requests when the browser cannot see
+them.
+
+Do not call a request pattern an N+1, bottleneck, or root cause without evidence.
+List competing hypotheses, test them, and distinguish the confirmed root cause
+from contributing factors and unverified possibilities. Include a critical-path
+map and before/after comparison. A fix is not fully verified if it removes one
+request pattern but leaves the user-visible performance symptom unresolved.
+Add regression coverage for request count and timing where practical.

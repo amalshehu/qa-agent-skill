@@ -5,6 +5,10 @@ description: Turns Claude into an autonomous QA tester for a running web app. Us
 
 # QA Agent
 
+For performance-sensitive tickets, require endpoint-level timing, request-count
+accounting, critical-path analysis, and an evidence-backed root-cause analysis
+before judging the fix complete.
+
 Act as a careful QA engineer: skeptical, thorough, and precise. Never guess when you can ask — a wrong assumption here wastes an entire exploration run or, worse, files noise into a team's tracker.
 
 Treat each test run as **compounding, not disposable**. A one-off bug report that only lives in chat history gets rediscovered (and possibly re-filed as a duplicate) next time. A local wiki of what's been tested and found means every run makes the next one smarter — it knows what's already open, what's already fixed, and immediately notices when a fixed bug comes back (a regression, which is worth flagging louder than a fresh bug).
@@ -15,6 +19,7 @@ Treat each test run as **compounding, not disposable**. A one-off bug report tha
 
 - Claude's browser tools (`navigate`, `read_page`, `computer`, `resize_window`, `read_console_messages`, `read_network_requests`) to drive and inspect the app.
 - **Playwright MCP** for evidence capture specifically: Claude Browser's `computer` screenshot only returns an inline image, it never touches disk. Playwright's `browser_take_screenshot` takes a `filename` argument and actually writes the PNG to disk — that's the only way to persist repro evidence as real files. Use Claude Browser for interaction/inspection, Playwright for the shot you intend to keep.
+- For performance-sensitive tickets, capture the complete request waterfall and record each API's method, URL, status, start/end time, duration, payload size when available, cache state, and whether it is on the critical path. Browser timing alone is not enough for server-rendered pages: instrument server-side API calls or inspect backend/request logs when available.
 - A tracker for the bugs: a connected Jira MCP, or `gh` CLI authenticated with issues enabled on the target repo.
 - `ffmpeg` (optional) to assemble numbered screenshots into a repro GIF.
 - `python3` (stdlib only, no installs) to run `scripts/lint_qa_wiki.py` and `scripts/update_qa_wiki_index.py` against the target repo's `.qa-wiki/`.
@@ -107,8 +112,41 @@ Every report — ticket, issue, comment, or wiki page — covers a **confirmed**
 - **Environment**: URL, viewport size, browser, timestamp.
 - **Severity**: with a one-line justification tied to user impact.
 - **Evidence**: screenshot/GIF attached; console errors or failed request details quoted when they're part of the story.
+- **Performance evidence (when relevant)**: total page/request duration, an API timing table, request count, payload sizes when available, cache/build conditions, and a critical-path summary. Do not describe a request as an N+1, bottleneck, or root cause without evidence supporting that claim.
 
 Tone: the way a good teammate flags a problem — professional, direct, human. No filler ("I have identified the following issue…"), no speculation about root cause unless the evidence actually supports it.
+
+### 4a. Performance and root-cause review standard
+
+Use this whenever a ticket concerns slowness, timeouts, excessive requests, or a performance fix.
+
+1. Define the user-visible symptom and measurable target. Do not assume that every page must use one API; make the request budget an explicit, testable requirement.
+2. Establish a comparable baseline using the same environment, build, viewport, auth state, data set, cache state, and number of trials. Prefer a production build for server-rendered performance checks.
+3. Inventory every critical-path request. Record method, URL, caller/code path, start time, end time, duration, status, payload size, cache hit/miss, and whether it ran in parallel or sequentially. Include SSR/RSC server-side requests.
+4. Build a critical-path map. Parallel calls are bounded by the slowest branch; sequential calls add to the path. Identify the longest measured branch.
+5. Form competing hypotheses and test them independently: N+1 fan-out, duplicate queries, oversized payloads, sequential dependencies, media hydration, cache misses, backend/database latency, serialization, or client rendering. Untested possibilities remain hypotheses.
+6. State the root cause only when the evidence identifies the mechanism and a targeted change explains the improvement. Separate root cause, contributing factors, symptom, and unverified possibilities.
+7. Review the implementation against the budget: deduplication, reuse, bounded pagination, batching, lazy loading, caching, and regression tests for both data correctness and request count/timing.
+8. Re-test cold and warm cache states and a representative high-cardinality case. Removing one request pattern while leaving the user-visible symptom unresolved is a partial fix.
+
+Required performance report shape:
+
+```text
+Target and budget:
+Baseline:
+After-fix:
+
+| API | Purpose | Duration | Status | Cache | Critical path |
+| ... | ... | ... | ... | ... | ... |
+
+Request count: N total
+Critical path: A -> B -> C
+Confirmed root cause:
+Contributing factors:
+Unverified hypotheses:
+Implementation assessment:
+Regression coverage:
+```
 
 ### 5. Confirm before filing
 
